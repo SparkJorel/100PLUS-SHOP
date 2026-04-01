@@ -1,134 +1,247 @@
+import { useEffect, useState } from 'react';
 import {
   ShoppingCart,
   Package,
-  Users,
+  AlertTriangle,
   TrendingUp,
-  AlertTriangle
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui';
+import { formatCurrency } from '../lib/utils';
+import { getDashboardStats, getSalesChartData } from '../lib/firebase/services/statsService';
+import { getRecentSales, getLowStockProducts } from '../lib/firebase/services';
+import type { Sale } from '../types';
 
-// Composant de carte statistique
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: 'primary' | 'green' | 'blue' | 'orange';
-  subtitle?: string;
+interface DashboardStats {
+  todaySalesCount: number;
+  todaySalesTotal: number;
+  monthSalesCount: number;
+  monthSalesTotal: number;
+  totalProducts: number;
+  lowStockCount: number;
 }
 
-function StatCard({ title, value, icon, color, subtitle }: StatCardProps) {
-  const colorClasses = {
-    primary: 'bg-primary-50 text-primary',
-    green: 'bg-green-50 text-green-600',
-    blue: 'bg-blue-50 text-blue-600',
-    orange: 'bg-orange-50 text-orange-600',
-  };
+interface LowStockProduct {
+  id: string;
+  name: string;
+  code: string;
+  quantity: number;
+  minStock: number;
+}
 
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
-          )}
-        </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon}
-        </div>
+export function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentSales, setRecentSales] = useState<Sale[]>([]);
+  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
+  const [chartData, setChartData] = useState<{ date: string; total: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const [statsData, salesData, lowStock, chart] = await Promise.all([
+          getDashboardStats(),
+          getRecentSales(5),
+          getLowStockProducts(),
+          getSalesChartData(7),
+        ]);
+
+        setStats(statsData);
+        setRecentSales(salesData);
+        setLowStockProducts(lowStock);
+        setChartData(chart);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-export default function Dashboard() {
-  // Pour l'instant, données statiques - sera connecté à Firebase plus tard
-  const stats = {
-    ventesJour: 0,
-    caJour: '0 FCFA',
-    produitsStock: 0,
-    alertesStock: 0,
-    clientsMaison: 0
-  };
+  const maxChartValue = Math.max(...chartData.map((d) => d.total), 1);
 
   return (
     <div className="space-y-6">
-      {/* Titre de la page */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <p className="text-gray-500">Bienvenue sur 100PLUS SHOP</p>
+        <p className="text-gray-500">Vue d'ensemble de votre boutique</p>
       </div>
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Ventes aujourd'hui"
-          value={stats.ventesJour}
-          icon={<ShoppingCart className="h-6 w-6" />}
-          color="primary"
-          subtitle="transactions"
-        />
-        <StatCard
-          title="Chiffre d'affaires"
-          value={stats.caJour}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="green"
-          subtitle="aujourd'hui"
-        />
-        <StatCard
-          title="Produits en stock"
-          value={stats.produitsStock}
-          icon={<Package className="h-6 w-6" />}
-          color="blue"
-          subtitle="articles"
-        />
-        <StatCard
-          title="Clients maison"
-          value={stats.clientsMaison}
-          icon={<Users className="h-6 w-6" />}
-          color="orange"
-          subtitle="enregistrés"
-        />
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Ventes du jour</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.todaySalesCount || 0}</p>
+                <p className="text-sm text-gray-500">
+                  {formatCurrency(stats?.todaySalesTotal || 0)}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-primary-50 rounded-full flex items-center justify-center">
+                <ShoppingCart className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">CA du mois</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats?.monthSalesTotal || 0)}
+                </p>
+                <p className="text-sm text-gray-500">{stats?.monthSalesCount || 0} ventes</p>
+              </div>
+              <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Articles en stock</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.totalProducts || 0}</p>
+                <p className="text-sm text-gray-500">Unités disponibles</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center">
+                <Package className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Alertes stock</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.lowStockCount || 0}</p>
+                <p className="text-sm text-gray-500">Produits en rupture</p>
+              </div>
+              <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Alertes stock */}
-      {stats.alertesStock > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
-            <p className="text-sm font-medium text-orange-800">
-              {stats.alertesStock} produit(s) avec stock bas
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Section vide pour l'instant */}
+      {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Dernières ventes */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Dernières ventes
-          </h2>
-          <div className="text-center py-8 text-gray-500">
-            <ShoppingCart className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-            <p>Aucune vente pour le moment</p>
-            <p className="text-sm">Commencez à vendre depuis la caisse</p>
-          </div>
-        </div>
+        {/* Sales Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ventes de la semaine</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 flex items-end justify-between gap-2">
+              {chartData.map((day, index) => (
+                <div key={index} className="flex-1 flex flex-col items-center">
+                  <div
+                    className="w-full bg-primary rounded-t transition-all duration-300 hover:bg-primary-600"
+                    style={{
+                      height: `${(day.total / maxChartValue) * 100}%`,
+                      minHeight: day.total > 0 ? '8px' : '2px',
+                    }}
+                  />
+                  <span className="text-xs text-gray-500 mt-2">{day.date}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Produits les plus vendus */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Produits populaires
-          </h2>
-          <div className="text-center py-8 text-gray-500">
-            <Package className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-            <p>Aucune donnée disponible</p>
-            <p className="text-sm">Les statistiques apparaîtront ici</p>
-          </div>
-        </div>
+        {/* Low Stock Alerts */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Alertes de stock</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lowStockProducts.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Aucune alerte de stock</p>
+            ) : (
+              <div className="space-y-3">
+                {lowStockProducts.slice(0, 5).map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between p-3 bg-red-50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{product.name}</p>
+                      <p className="text-sm text-gray-500">{product.code}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-red-600">{product.quantity} restants</p>
+                      <p className="text-xs text-gray-500">Min: {product.minStock}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Recent Sales */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Dernières ventes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentSales.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Aucune vente récente</p>
+          ) : (
+            <div className="space-y-3">
+              {recentSales.map((sale) => (
+                <div
+                  key={sale.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 bg-primary-50 rounded-full flex items-center justify-center">
+                      <ShoppingCart className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{sale.saleNumber}</p>
+                      <p className="text-sm text-gray-500">
+                        {sale.customerName || 'Client Lambda'} • {sale.items.length} article(s)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">{formatCurrency(sale.total)}</p>
+                    <p className="text-sm text-gray-500">
+                      {sale.createdAt.toDate().toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+export default Dashboard;

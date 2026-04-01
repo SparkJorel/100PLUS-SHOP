@@ -14,6 +14,11 @@ export function formatPrice(amount: number): string {
 }
 
 /**
+ * Alias pour formatPrice
+ */
+export const formatCurrency = formatPrice;
+
+/**
  * Formater un nombre
  */
 export function formatNumber(num: number): string {

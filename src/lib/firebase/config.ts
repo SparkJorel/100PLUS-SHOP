@@ -9,25 +9,24 @@ import { getStorage } from 'firebase/storage';
 
 // Configuration Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyBo04B2gdEjoWJ-T9xoo-bhNBI_JXEDuTM",
-  authDomain: "bloodlink-3327e.firebaseapp.com",
-  projectId: "bloodlink-3327e",
-  storageBucket: "bloodlink-3327e.firebasestorage.app",
-  messagingSenderId: "914669668674",
-  appId: "1:914669668674:web:ed924599aaa67ec088e0db",
-  measurementId: "G-HELEHJYC5Y"
+  apiKey: "AIzaSyAB7XwvzQ8P5tZYdnAnm7WcNMsiO0oWXew",
+  authDomain: "shop100plus-3b04a.firebaseapp.com",
+  projectId: "shop100plus-3b04a",
+  storageBucket: "shop100plus-3b04a.firebasestorage.app",
+  messagingSenderId: "9472236",
+  appId: "1:9472236:web:8c2070b2a6fd317483bdc9",
+  measurementId: "G-7L9FT4NBRD"
 };
 
 // Initialiser Firebase
 const app = initializeApp(firebaseConfig);
 
 // Initialiser Firestore avec persistance offline
-// Utilise la base de données personnalisée "sans-plus-bd"
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
-}, 'sans-plus-bd');
+});
 
 // Auth
 export const auth = getAuth(app);

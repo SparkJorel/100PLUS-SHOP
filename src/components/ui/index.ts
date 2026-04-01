@@ -14,3 +14,4 @@ export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Modal } from './Modal';
 export { Badge } from './Badge';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './Table';
+export { ToastContainer, toast } from './Toast';

@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores';
 import { Layout } from './components/layout';
-import { Login, Dashboard } from './pages';
+import { Login, Dashboard, Products, Customers, Stock, POS, Sales, Reports, CashRegister, Expenses, Credits, Accounting, UserManagement, Suppliers } from './pages';
 import { Loader2 } from 'lucide-react';
+import { ToastContainer } from './components/ui';
 
 // Composant pour protéger les routes
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,18 +44,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Pages placeholder (à créer plus tard)
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        <p className="text-gray-500 mt-2">Cette page sera bientôt disponible</p>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const { initialize } = useAuthStore();
 
@@ -66,6 +55,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Routes>
         {/* Route publique - Login */}
         <Route
@@ -87,12 +77,18 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="pos" element={<PlaceholderPage title="Caisse (POS)" />} />
-          <Route path="products" element={<PlaceholderPage title="Produits" />} />
-          <Route path="stock" element={<PlaceholderPage title="Stock" />} />
-          <Route path="customers" element={<PlaceholderPage title="Clients" />} />
-          <Route path="sales" element={<PlaceholderPage title="Ventes" />} />
-          <Route path="reports" element={<PlaceholderPage title="Rapports" />} />
+          <Route path="pos" element={<POS />} />
+          <Route path="products" element={<Products />} />
+          <Route path="stock" element={<Stock />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="sales" element={<Sales />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="cash-register" element={<CashRegister />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="credits" element={<Credits />} />
+          <Route path="accounting" element={<Accounting />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="suppliers" element={<Suppliers />} />
         </Route>
 
         {/* Redirect toutes les autres routes vers le dashboard */}

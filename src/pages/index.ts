@@ -1,2 +1,14 @@
 export { default as Login } from './Login';
 export { default as Dashboard } from './Dashboard';
+export { default as Products } from './Products';
+export { default as Customers } from './Customers';
+export { default as Stock } from './Stock';
+export { default as POS } from './POS';
+export { default as Sales } from './Sales';
+export { default as Reports } from './Reports';
+export { default as CashRegister } from './CashRegister';
+export { default as Expenses } from './Expenses';
+export { default as Credits } from './Credits';
+export { default as Accounting } from './Accounting';
+export { default as UserManagement } from './UserManagement';
+export { default as Suppliers } from './Suppliers';

@@ -58,3 +58,49 @@
     @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
   }
 }
+
+/* ===== Print Styles - Ticket 80mm ===== */
+@media print {
+  /* Hide everything except the receipt */
+  body * {
+    visibility: hidden;
+  }
+
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+
+  #receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 4mm;
+    font-size: 12px;
+    line-height: 1.4;
+    border: none;
+    box-shadow: none;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+
+/* Toast animation */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-in.slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
+}

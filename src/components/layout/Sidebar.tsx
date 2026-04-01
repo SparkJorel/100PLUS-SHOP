@@ -7,7 +7,13 @@ import {
   Users,
   Receipt,
   BarChart3,
-  X
+  X,
+  Calculator,
+  Wallet,
+  CreditCard,
+  FileText,
+  Truck,
+  UserCog
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -24,6 +30,12 @@ const navigation = [
   { name: 'Clients', href: '/customers', icon: Users },
   { name: 'Ventes', href: '/sales', icon: Receipt },
   { name: 'Rapports', href: '/reports', icon: BarChart3 },
+  { name: 'Caisse du jour', href: '/cash-register', icon: Calculator },
+  { name: 'Dépenses', href: '/expenses', icon: Wallet },
+  { name: 'Créances', href: '/credits', icon: CreditCard },
+  { name: 'Comptabilité', href: '/accounting', icon: FileText },
+  { name: 'Fournisseurs', href: '/suppliers', icon: Truck },
+  { name: 'Utilisateurs', href: '/users', icon: UserCog },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -46,12 +58,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-white px-2 py-1 rounded text-sm font-bold">
-              100+
-            </div>
-            <span className="font-semibold text-gray-900">SHOP</span>
-          </div>
+          <img src="/logo_100plus.jpg" alt="100PLUS SHOP" className="h-10 object-contain" />
           <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
