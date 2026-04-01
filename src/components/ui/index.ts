@@ -15,3 +15,5 @@ export { Modal } from './Modal';
 export { Badge } from './Badge';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './Table';
 export { ToastContainer, toast } from './Toast';
+export { Pagination, usePagination } from './Pagination';
+export type { PaginationProps } from './Pagination';

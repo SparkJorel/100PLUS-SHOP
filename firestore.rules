@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isActiveUser() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+    }
+
+    // ============================================
+    // Collection Rules
+    // ============================================
+
+    // 1. users — read: authenticated + active | write: admin only
+    match /users/{userId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow write: if isAdmin();
+    }
+
+    // 2. products — read: authenticated + active | create/update: authenticated + active | delete: admin only
+    match /products/{productId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create, update: if isAuthenticated() && isActiveUser();
+      allow delete: if isAdmin();
+    }
+
+    // 3. categories — read: authenticated | write: authenticated + active
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isActiveUser();
+    }
+
+    // 4. sales — read: authenticated + active | create: authenticated + active | update: authenticated + active | delete: never
+    match /sales/{saleId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create: if isAuthenticated() && isActiveUser();
+      allow update: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 5. customers — read: authenticated + active | create/update: authenticated + active | delete: admin only
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create, update: if isAuthenticated() && isActiveUser();
+      allow delete: if isAdmin();
+    }
+
+    // 6. stockMovements — read: authenticated + active | create: authenticated + active | delete: never
+    match /stockMovements/{movementId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 7. cashRegisterSessions — read: authenticated + active | create/update: authenticated + active | delete: never
+    match /cashRegisterSessions/{sessionId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create, update: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 8. expenses — read: authenticated + active | create/update: authenticated + active | delete: admin only
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create, update: if isAuthenticated() && isActiveUser();
+      allow delete: if isAdmin();
+    }
+
+    // 9. credits — read: authenticated + active | create/update: authenticated + active | delete: never
+    match /credits/{creditId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create, update: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 10. returns — read: authenticated + active | create: authenticated + active | delete: never
+    match /returns/{returnId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 11. suppliers — read: authenticated + active | write: admin only
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow write: if isAdmin();
+    }
+
+    // 12. deliveryNotes — read: authenticated + active | create: authenticated + active | delete: never
+    match /deliveryNotes/{noteId} {
+      allow read: if isAuthenticated() && isActiveUser();
+      allow create: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+
+    // 13. counters — read/write: authenticated + active
+    match /counters/{counterId} {
+      allow read, write: if isAuthenticated() && isActiveUser();
+    }
+
+    // 14. activityLog — read: admin only | create: authenticated + active | delete: never
+    match /activityLog/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && isActiveUser();
+      allow delete: if false;
+    }
+  }
+}

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores';
+import { useAuthStore, useThemeStore } from './stores';
 import { Layout } from './components/layout';
-import { Login, Dashboard, Products, Customers, Stock, POS, Sales, Reports, CashRegister, Expenses, Credits, Accounting, UserManagement, Suppliers } from './pages';
+import { Login, Dashboard, Products, Customers, Stock, POS, Sales, Reports, CashRegister, Expenses, Credits, Accounting, UserManagement, Suppliers, Inventory, ActivityLog, Invoices } from './pages';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from './components/ui';
 
@@ -46,12 +46,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const { initialize } = useAuthStore();
+  const { isDark } = useThemeStore();
 
   // Initialiser l'écoute de l'état d'authentification
   useEffect(() => {
     const unsubscribe = initialize();
     return () => unsubscribe();
   }, [initialize]);
+
+  // Appliquer le mode sombre au chargement
+  useEffect(() => {
+    if (isDark) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [isDark]);
 
   return (
     <BrowserRouter>
@@ -89,6 +96,9 @@ function App() {
           <Route path="accounting" element={<Accounting />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="suppliers" element={<Suppliers />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="invoices" element={<Invoices />} />
+          <Route path="activity-log" element={<ActivityLog />} />
         </Route>
 
         {/* Redirect toutes les autres routes vers le dashboard */}

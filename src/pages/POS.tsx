@@ -169,6 +169,16 @@ export function POS() {
   const handlePayment = async () => {
     if (!user || cart.length === 0) return;
 
+    if (total <= 0) {
+      toast.error('Le total de la vente doit être supérieur à 0');
+      return;
+    }
+
+    if (paymentMethod === 'cash' && amountReceived > 0 && amountReceived < total) {
+      toast.error('Le montant reçu est insuffisant pour couvrir le total');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {

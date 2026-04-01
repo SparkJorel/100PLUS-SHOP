@@ -4,7 +4,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuthStore } from '../stores';
+import { auth } from '../lib/firebase';
+import { toast } from '../components/ui';
 
 // Schéma de validation
 const loginSchema = z.object({
@@ -18,6 +21,27 @@ export default function Login() {
   const navigate = useNavigate();
   const { signIn, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      toast('Veuillez entrer votre adresse email', 'error');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast('Email de réinitialisation envoyé', 'success');
+      setShowResetForm(false);
+      setResetEmail('');
+    } catch (err: any) {
+      toast(err.message || 'Erreur lors de l\'envoi de l\'email', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const {
     register,
@@ -102,6 +126,43 @@ export default function Login() {
               </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              )}
+              <button
+                type="button"
+                className="mt-1 text-sm text-primary hover:underline"
+                onClick={() => setShowResetForm(!showResetForm)}
+              >
+                Mot de passe oublié ?
+              </button>
+
+              {showResetForm && (
+                <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Entrez votre adresse email pour recevoir un lien de réinitialisation.
+                  </p>
+                  <input
+                    type="email"
+                    className="input"
+                    placeholder="votreemail@exemple.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    disabled={resetLoading}
+                    className="btn-primary w-full flex items-center justify-center py-2 text-sm"
+                    onClick={handlePasswordReset}
+                  >
+                    {resetLoading ? (
+                      <>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      'Envoyer le lien'
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           </div>

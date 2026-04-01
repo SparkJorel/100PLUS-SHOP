@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Plus, Search, Edit, Trash2, Package, Upload, Image } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Upload, Image, Download, QrCode, Printer } from 'lucide-react';
 import {
   Button,
   Input,
@@ -14,8 +14,10 @@ import {
   TableCell,
   Badge,
   toast,
+  Pagination,
+  usePagination,
 } from '../components/ui';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, generateBarcodeSVG, generateBarcodesPrintHTML } from '../lib/utils';
 import {
   subscribeToProducts,
   subscribeToCategories,
@@ -74,6 +76,15 @@ export function Products() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // CSV import state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importProducts, setImportProducts] = useState<Omit<ProductFormState, 'description'>[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // Barcode modal state
+  const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+
   useEffect(() => {
     initializeDefaultCategories();
 
@@ -96,6 +107,20 @@ export function Products() {
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const {
+    paginatedItems: paginatedProducts,
+    currentPage,
+    totalPages,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+  } = usePagination(filteredProducts);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -153,6 +178,40 @@ export function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Le nom du produit est obligatoire');
+      return;
+    }
+    if (formData.prixAchat < 0) {
+      toast.error('Le prix d\'achat ne peut pas être négatif');
+      return;
+    }
+    if (formData.prixDetail < 0) {
+      toast.error('Le prix détail ne peut pas être négatif');
+      return;
+    }
+    if (formData.prixMaison < 0) {
+      toast.error('Le prix maison ne peut pas être négatif');
+      return;
+    }
+    if (formData.prixDetail < formData.prixAchat) {
+      toast.error('Le prix détail doit être supérieur ou égal au prix d\'achat');
+      return;
+    }
+    if (formData.prixMaison < formData.prixAchat) {
+      toast.error('Le prix maison doit être supérieur ou égal au prix d\'achat');
+      return;
+    }
+    if (formData.quantity < 0) {
+      toast.error('La quantité ne peut pas être négative');
+      return;
+    }
+    if (formData.minStock < 0) {
+      toast.error('Le stock minimum ne peut pas être négatif');
+      return;
+    }
+
     const category = categories.find((c) => c.id === formData.categoryId);
     const productData = {
       code: formData.code,
@@ -197,6 +256,161 @@ export function Products() {
     }
   };
 
+  // --- CSV Export ---
+  const handleExportCSV = () => {
+    const headers = ['Code', 'Nom', 'Catégorie', 'Taille', 'Couleur', 'Prix Achat', 'Prix Détail', 'Prix Maison', 'Quantité', 'Stock Min'];
+    const rows = products.map((p) => [
+      p.code,
+      p.name,
+      p.categoryName,
+      p.size,
+      p.color,
+      p.prixAchat,
+      p.prixDetail,
+      p.prixMaison,
+      p.quantity,
+      p.minStock,
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+
+    const bom = '\uFEFF';
+    const csv = bom + [headers.join(';'), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'produits_100plus.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${products.length} produit(s) exporté(s)`);
+  };
+
+  // --- CSV Import ---
+  const handleCSVFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) {
+        toast.error('Le fichier CSV est vide ou invalide');
+        return;
+      }
+
+      // Detect separator
+      const sep = lines[0].includes(';') ? ';' : ',';
+      const headers = lines[0].split(sep).map((h) => h.replace(/"/g, '').trim().toLowerCase());
+
+      const requiredCols = ['code', 'nom', 'prix détail', 'prix maison', 'quantité'];
+      const missing = requiredCols.filter((c) => !headers.some((h) => h.includes(c.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) || h.includes(c)));
+      // More lenient check: normalize both sides
+      const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const headersNorm = headers.map(normalize);
+      const missingStrict = requiredCols.filter((c) => !headersNorm.some((h) => h.includes(normalize(c))));
+
+      if (missingStrict.length > 0) {
+        toast.error(`Colonnes manquantes : ${missingStrict.join(', ')}`);
+        return;
+      }
+
+      const colIndex = (name: string) => headersNorm.findIndex((h) => h.includes(normalize(name)));
+
+      const parsed: Omit<ProductFormState, 'description'>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(sep).map((v) => v.replace(/^"|"$/g, '').trim());
+        if (vals.length < 2) continue;
+        parsed.push({
+          code: vals[colIndex('code')] || '',
+          name: vals[colIndex('nom')] || '',
+          categoryId: '',
+          size: vals[colIndex('taille')] || 'M',
+          color: vals[colIndex('couleur')] || '',
+          prixAchat: Number(vals[colIndex('prix achat')]) || 0,
+          prixDetail: Number(vals[colIndex('prix detail')]) || 0,
+          prixMaison: Number(vals[colIndex('prix maison')]) || 0,
+          quantity: Number(vals[colIndex('quantite')]) || 0,
+          minStock: Number(vals[colIndex('stock min')]) || 5,
+        });
+      }
+
+      if (parsed.length === 0) {
+        toast.error('Aucun produit valide trouvé dans le fichier');
+        return;
+      }
+
+      setImportProducts(parsed);
+      setIsImportModalOpen(true);
+    };
+    reader.readAsText(file, 'UTF-8');
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    setIsImporting(true);
+    let success = 0;
+    let errors = 0;
+    const defaultCategory = categories[0];
+
+    for (const p of importProducts) {
+      try {
+        // Try to match category by name from CSV, fallback to first category
+        const matchedCat = categories.find(
+          (c) => c.name.toLowerCase() === (p as any).categoryName?.toLowerCase()
+        );
+        await createProduct({
+          code: p.code,
+          name: p.name,
+          description: '',
+          categoryId: matchedCat?.id || defaultCategory?.id || '',
+          categoryName: matchedCat?.name || defaultCategory?.name || '',
+          size: p.size,
+          color: p.color,
+          prixAchat: p.prixAchat,
+          prixDetail: p.prixDetail,
+          prixMaison: p.prixMaison,
+          quantity: p.quantity,
+          minStock: p.minStock,
+          isActive: true,
+        });
+        success++;
+      } catch {
+        errors++;
+      }
+    }
+
+    setIsImporting(false);
+    setIsImportModalOpen(false);
+    setImportProducts([]);
+    if (errors > 0) {
+      toast.error(`${success} importé(s), ${errors} erreur(s)`);
+    } else {
+      toast.success(`${success} produit(s) importé(s) avec succès`);
+    }
+  };
+
+  // --- Barcode ---
+  const handlePrintBarcode = (product: Product) => {
+    setBarcodeProduct(product);
+  };
+
+  const handlePrintSingleBarcode = () => {
+    window.print();
+  };
+
+  const handlePrintAllBarcodes = () => {
+    const html = generateBarcodesPrintHTML(
+      filteredProducts.map((p) => ({ code: p.code, name: p.name, prixDetail: p.prixDetail })),
+      formatCurrency
+    );
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
       await createCategory({ name: newCategoryName.trim(), description: '' });
@@ -220,9 +434,28 @@ export function Products() {
           <h1 className="text-2xl font-bold text-gray-900">Produits</h1>
           <p className="text-gray-500">{products.length} produit(s) au total</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="secondary" onClick={() => setIsCategoryModalOpen(true)}>
             + Catégorie
+          </Button>
+          <Button variant="secondary" onClick={handleExportCSV}>
+            <Download className="h-4 w-4 mr-2" />
+            Exporter CSV
+          </Button>
+          <Button variant="secondary" onClick={() => csvInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importer CSV
+          </Button>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCSVFileChange}
+            className="hidden"
+          />
+          <Button variant="secondary" onClick={handlePrintAllBarcodes} disabled={filteredProducts.length === 0}>
+            <Printer className="h-4 w-4 mr-2" />
+            Codes-barres
           </Button>
           <Button onClick={() => handleOpenModal()}>
             <Plus className="h-4 w-4 mr-2" />
@@ -278,7 +511,7 @@ export function Products() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {paginatedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -313,6 +546,13 @@ export function Products() {
                   <TableCell>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handlePrintBarcode(product)}
+                        className="p-1 text-gray-500 hover:text-primary"
+                        title="Code-barres"
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleOpenModal(product)}
                         className="p-1 text-gray-500 hover:text-primary"
                       >
@@ -331,6 +571,13 @@ export function Products() {
             </TableBody>
           </Table>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
 
       {/* Product Modal */}
@@ -486,6 +733,84 @@ export function Products() {
             <Button onClick={handleAddCategory}>Créer</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* CSV Import Preview Modal */}
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => { setIsImportModalOpen(false); setImportProducts([]); }}
+        title={`Aperçu de l'import (${importProducts.length} produit(s))`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="max-h-96 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Taille</TableHead>
+                  <TableHead>Couleur</TableHead>
+                  <TableHead>Prix Détail</TableHead>
+                  <TableHead>Prix Maison</TableHead>
+                  <TableHead>Qté</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importProducts.map((p, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{p.code}</TableCell>
+                    <TableCell>{p.name}</TableCell>
+                    <TableCell>{p.size}</TableCell>
+                    <TableCell>{p.color}</TableCell>
+                    <TableCell>{formatCurrency(p.prixDetail)}</TableCell>
+                    <TableCell>{formatCurrency(p.prixMaison)}</TableCell>
+                    <TableCell>{p.quantity}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => { setIsImportModalOpen(false); setImportProducts([]); }}>
+              Annuler
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={isImporting}>
+              {isImporting ? 'Import en cours...' : `Confirmer l'import (${importProducts.length})`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Barcode Modal */}
+      <Modal
+        isOpen={!!barcodeProduct}
+        onClose={() => setBarcodeProduct(null)}
+        title="Code-barres"
+        size="sm"
+      >
+        {barcodeProduct && (
+          <div className="space-y-4">
+            <div id="barcode-print" className="text-center p-4">
+              <p className="font-bold text-lg mb-1">{barcodeProduct.name}</p>
+              <p className="text-sm text-gray-500 mb-1">{barcodeProduct.code}</p>
+              <p className="text-sm font-semibold mb-3">{formatCurrency(barcodeProduct.prixDetail)}</p>
+              <div
+                className="flex justify-center"
+                dangerouslySetInnerHTML={{ __html: generateBarcodeSVG(barcodeProduct.code, 250, 70) }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setBarcodeProduct(null)}>
+                Fermer
+              </Button>
+              <Button onClick={handlePrintSingleBarcode}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimer
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -8,3 +8,4 @@ export * from './expenseService';
 export * from './cashRegisterService';
 export * from './creditService';
 export * from './supplierService';
+export * from './activityLogService';

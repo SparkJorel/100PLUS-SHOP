@@ -1,5 +1,5 @@
-import { Menu, Wifi, WifiOff, LogOut, User } from 'lucide-react';
-import { useAuthStore } from '../../stores';
+import { Menu, Wifi, WifiOff, LogOut, User, Moon, Sun } from 'lucide-react';
+import { useAuthStore, useThemeStore } from '../../stores';
 import { useOnlineStatus } from '../../lib/hooks';
 import { useState, useRef, useEffect } from 'react';
 
@@ -10,6 +10,7 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, signOut } = useAuthStore();
   const isOnline = useOnlineStatus();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +49,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         {/* Actions droite */}
         <div className="flex items-center gap-4">
+          {/* Toggle dark mode */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            title={isDark ? 'Mode clair' : 'Mode sombre'}
+          >
+            {isDark ? (
+              <Sun className="h-5 w-5 text-yellow-400" />
+            ) : (
+              <Moon className="h-5 w-5 text-gray-500" />
+            )}
+          </button>
+
           {/* Indicateur de connexion */}
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${

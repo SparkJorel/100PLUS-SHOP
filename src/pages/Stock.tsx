@@ -17,6 +17,8 @@ import {
   TableCell,
   Badge,
   toast,
+  Pagination,
+  usePagination,
 } from '../components/ui';
 import { formatCurrency } from '../lib/utils';
 import {
@@ -70,6 +72,30 @@ export function Stock() {
       product.code.toLowerCase().includes(term)
     );
   });
+
+  const {
+    paginatedItems: paginatedProducts,
+    currentPage: stockPage,
+    totalPages: stockTotalPages,
+    setCurrentPage: setStockPage,
+    pageSize: stockPageSize,
+    setPageSize: setStockPageSize,
+  } = usePagination(filteredProducts);
+
+  const {
+    paginatedItems: paginatedMovements,
+    currentPage: movementsPage,
+    totalPages: movementsTotalPages,
+    setCurrentPage: setMovementsPage,
+    pageSize: movementsPageSize,
+    setPageSize: setMovementsPageSize,
+  } = usePagination(movements);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setStockPage(1);
+    setMovementsPage(1);
+  }, [searchTerm]);
 
   const handleOpenModal = (type: StockMovementType = 'in', productId?: string) => {
     setFormData({
@@ -221,7 +247,7 @@ export function Stock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
+                {paginatedProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>
                       <div>
@@ -265,6 +291,13 @@ export function Stock() {
               </TableBody>
             </Table>
           )}
+          <Pagination
+            currentPage={stockPage}
+            totalPages={stockTotalPages}
+            onPageChange={setStockPage}
+            pageSize={stockPageSize}
+            onPageSizeChange={setStockPageSize}
+          />
         </Card>
       ) : (
         <Card className="overflow-hidden p-0">
@@ -288,7 +321,7 @@ export function Stock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {movements.map((movement) => (
+                {paginatedMovements.map((movement) => (
                   <TableRow key={movement.id}>
                     <TableCell>
                       {movement.createdAt.toDate().toLocaleDateString('fr-FR', {
@@ -340,6 +373,13 @@ export function Stock() {
               </TableBody>
             </Table>
           )}
+          <Pagination
+            currentPage={movementsPage}
+            totalPages={movementsTotalPages}
+            onPageChange={setMovementsPage}
+            pageSize={movementsPageSize}
+            onPageSizeChange={setMovementsPageSize}
+          />
         </Card>
       )}
 

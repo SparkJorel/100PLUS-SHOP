@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit, Trash2, Users, Phone, Mail } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Eye } from 'lucide-react';
 import {
   Button,
   Input,
@@ -11,6 +11,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  Badge,
   toast,
 } from '../components/ui';
 import { formatCurrency } from '../lib/utils';
@@ -20,7 +21,9 @@ import {
   updateCustomer,
   deleteCustomer,
 } from '../lib/firebase/services';
-import type { Customer, CustomerFormData } from '../types';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import type { Customer, CustomerFormData, Sale } from '../types';
 
 export function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,6 +38,34 @@ export function Customers() {
     email: '',
     address: '',
   });
+
+  // Purchase history state
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [purchaseCustomer, setPurchaseCustomer] = useState<Customer | null>(null);
+  const [customerSales, setCustomerSales] = useState<Sale[]>([]);
+  const [isLoadingSales, setIsLoadingSales] = useState(false);
+
+  const handleViewPurchases = async (customer: Customer) => {
+    setPurchaseCustomer(customer);
+    setIsPurchaseModalOpen(true);
+    setIsLoadingSales(true);
+    try {
+      const q = query(
+        collection(db, 'sales'),
+        where('customerId', '==', customer.id),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      const sales = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Sale));
+      setCustomerSales(sales);
+    } catch (error) {
+      console.error('Error fetching customer sales:', error);
+      toast.error('Erreur lors du chargement des achats');
+      setCustomerSales([]);
+    } finally {
+      setIsLoadingSales(false);
+    }
+  };
 
   useEffect(() => {
     const unsub = subscribeToCustomers((data) => {
@@ -200,6 +231,13 @@ export function Customers() {
                   <TableCell>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handleViewPurchases(customer)}
+                        className="p-1 text-gray-500 hover:text-blue-600"
+                        title="Voir achats"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleOpenModal(customer)}
                         className="p-1 text-gray-500 hover:text-primary"
                       >
@@ -261,6 +299,89 @@ export function Customers() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Purchase History Modal */}
+      <Modal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => { setIsPurchaseModalOpen(false); setPurchaseCustomer(null); setCustomerSales([]); }}
+        title={`Historique d'achats — ${purchaseCustomer?.fullName || ''}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Customer stats summary */}
+          {purchaseCustomer && (
+            <div className="flex gap-6 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-500">Total achats</p>
+                <p className="text-lg font-bold">{purchaseCustomer.purchasesCount}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total dépensé</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(purchaseCustomer.totalPurchases)}</p>
+              </div>
+            </div>
+          )}
+
+          {isLoadingSales ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : customerSales.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              Aucun achat trouvé pour ce client
+            </div>
+          ) : (
+            <>
+              <div className="max-h-96 overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>N° Vente</TableHead>
+                      <TableHead>Articles</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Statut</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerSales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell>
+                          {sale.createdAt instanceof Timestamp
+                            ? sale.createdAt.toDate().toLocaleDateString('fr-FR')
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{sale.saleNumber}</TableCell>
+                        <TableCell>{sale.items.length} article(s)</TableCell>
+                        <TableCell className="font-medium">{formatCurrency(sale.total)}</TableCell>
+                        <TableCell>
+                          <Badge variant={sale.status === 'completed' ? 'success' : 'danger'}>
+                            {sale.status === 'completed' ? 'Complétée' : 'Annulée'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end p-3 bg-gray-50 rounded-lg">
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Total général</p>
+                  <p className="text-xl font-bold text-primary">
+                    {formatCurrency(customerSales.filter((s) => s.status === 'completed').reduce((sum, s) => sum + s.total, 0))}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end">
+            <Button variant="ghost" onClick={() => { setIsPurchaseModalOpen(false); setPurchaseCustomer(null); setCustomerSales([]); }}>
+              Fermer
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

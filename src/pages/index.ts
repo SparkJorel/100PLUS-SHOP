@@ -12,3 +12,6 @@ export { default as Credits } from './Credits';
 export { default as Accounting } from './Accounting';
 export { default as UserManagement } from './UserManagement';
 export { default as Suppliers } from './Suppliers';
+export { default as Inventory } from './Inventory';
+export { default as ActivityLog } from './ActivityLog';
+export { default as Invoices } from './Invoices';

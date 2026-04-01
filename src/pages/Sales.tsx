@@ -15,6 +15,8 @@ import {
   toast,
   Select,
   Textarea,
+  Pagination,
+  usePagination,
 } from '../components/ui';
 import { formatCurrency } from '../lib/utils';
 import { subscribeToSales, cancelSale, createReturn } from '../lib/firebase/services';
@@ -59,6 +61,20 @@ export function Sales() {
 
     return matchesSearch && matchesDate;
   });
+
+  const {
+    paginatedItems: paginatedSales,
+    currentPage,
+    totalPages,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+  } = usePagination(filteredSales);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter]);
 
   const handleViewDetails = (sale: Sale) => {
     setSelectedSale(sale);
@@ -230,7 +246,7 @@ export function Sales() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSales.map((sale) => (
+              {paginatedSales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell>
                     <span className="font-medium">{sale.saleNumber}</span>
@@ -289,6 +305,13 @@ export function Sales() {
             </TableBody>
           </Table>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
 
       {/* Sale Detail Modal */}

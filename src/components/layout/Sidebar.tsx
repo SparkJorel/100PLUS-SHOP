@@ -13,7 +13,10 @@ import {
   CreditCard,
   FileText,
   Truck,
-  UserCog
+  UserCog,
+  ClipboardCheck,
+  FileSpreadsheet,
+  Activity
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -35,7 +38,10 @@ const navigation = [
   { name: 'Créances', href: '/credits', icon: CreditCard },
   { name: 'Comptabilité', href: '/accounting', icon: FileText },
   { name: 'Fournisseurs', href: '/suppliers', icon: Truck },
+  { name: 'Inventaire', href: '/inventory', icon: ClipboardCheck },
+  { name: 'Factures/Devis', href: '/invoices', icon: FileSpreadsheet },
   { name: 'Utilisateurs', href: '/users', icon: UserCog },
+  { name: 'Journal activité', href: '/activity-log', icon: Activity },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
