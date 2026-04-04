@@ -9,6 +9,7 @@ import {
   where,
   Timestamp,
   onSnapshot,
+  increment,
 } from 'firebase/firestore';
 import { db } from '../config';
 import type { Customer, CustomerFormData } from '../../../types';
@@ -88,26 +89,22 @@ export async function updateCustomerPurchaseStats(
   id: string,
   purchaseAmount: number
 ): Promise<void> {
-  const customer = await getCustomerById(id);
-  if (customer) {
-    await updateDoc(doc(db, CUSTOMERS_COLLECTION, id), {
-      totalPurchases: customer.totalPurchases + purchaseAmount,
-      purchasesCount: customer.purchasesCount + 1,
-      updatedAt: Timestamp.now(),
-    });
-  }
+  // Use atomic increment to avoid read-then-write race conditions
+  await updateDoc(doc(db, CUSTOMERS_COLLECTION, id), {
+    totalPurchases: increment(purchaseAmount),
+    purchasesCount: increment(1),
+    updatedAt: Timestamp.now(),
+  });
 }
 
 export async function revertCustomerPurchaseStats(
   id: string,
   purchaseAmount: number
 ): Promise<void> {
-  const customer = await getCustomerById(id);
-  if (customer) {
-    await updateDoc(doc(db, CUSTOMERS_COLLECTION, id), {
-      totalPurchases: Math.max(0, customer.totalPurchases - purchaseAmount),
-      purchasesCount: Math.max(0, customer.purchasesCount - 1),
-      updatedAt: Timestamp.now(),
-    });
-  }
+  // Use atomic increment (negative) to avoid read-then-write race conditions
+  await updateDoc(doc(db, CUSTOMERS_COLLECTION, id), {
+    totalPurchases: increment(-purchaseAmount),
+    purchasesCount: increment(-1),
+    updatedAt: Timestamp.now(),
+  });
 }
