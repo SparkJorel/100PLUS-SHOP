@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/100plus-shop
+  IMAGE_NAME: sparkjorel/100plus-shop
 
 jobs:
   test:
@@ -21,18 +21,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 100plus-app/package-lock.json
 
       - name: Install dependencies
-        working-directory: 100plus-app
         run: npm ci
 
       - name: Run unit and service tests
-        working-directory: 100plus-app
         run: npx vitest run
 
       - name: Type check
-        working-directory: 100plus-app
         run: npx tsc --noEmit
 
   build-and-push:
@@ -64,8 +60,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./100plus-app
-          file: ./100plus-app/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -85,11 +81,13 @@ jobs:
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to server
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            cd ~/100plus-shop
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull app
-            docker compose up -d
-            docker image prune -f
-          EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "cd ~/100plus-shop && \
+             echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
+             docker compose pull && \
+             docker compose up -d && \
+             docker image prune -f"
