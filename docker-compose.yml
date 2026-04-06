@@ -1,0 +1,7 @@
+services:
+  app:
+    image: ghcr.io/sparkjorel/100plus-shop:latest
+    container_name: 100plus-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:80"
