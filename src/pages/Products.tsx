@@ -364,7 +364,6 @@ export function Products() {
           name: p.name,
           description: '',
           categoryId: matchedCat?.id || defaultCategory?.id || '',
-          categoryName: matchedCat?.name || defaultCategory?.name || '',
           size: p.size,
           color: p.color,
           prixAchat: p.prixAchat,
@@ -373,7 +372,7 @@ export function Products() {
           quantity: p.quantity,
           minStock: p.minStock,
           isActive: true,
-        });
+        } as any);
         success++;
       } catch {
         errors++;

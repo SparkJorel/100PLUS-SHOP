@@ -339,7 +339,7 @@ export function Invoices() {
                       </span>
                       <Button
                         size="sm"
-                        variant="destructive"
+                        variant="danger"
                         onClick={() => removeQuoteItem(idx)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -348,7 +348,7 @@ export function Invoices() {
                   ))}
                 </div>
 
-                <Button size="sm" variant="outline" className="mt-3" onClick={addQuoteItem}>
+                <Button size="sm" variant="secondary" className="mt-3" onClick={addQuoteItem}>
                   <Plus className="h-4 w-4 mr-1" />
                   Ajouter un article
                 </Button>

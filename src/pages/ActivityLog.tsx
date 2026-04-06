@@ -237,17 +237,17 @@ export function ActivityLog() {
           {/* Quick date buttons */}
           <div className="flex items-center gap-2 mt-3">
             <span className="text-sm text-gray-500">Période rapide :</span>
-            <Button variant="outline" size="sm" onClick={() => setQuickDate('today')}>
+            <Button variant="secondary" size="sm" onClick={() => setQuickDate('today')}>
               Aujourd'hui
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickDate('week')}>
+            <Button variant="secondary" size="sm" onClick={() => setQuickDate('week')}>
               Cette semaine
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickDate('month')}>
+            <Button variant="secondary" size="sm" onClick={() => setQuickDate('month')}>
               Ce mois
             </Button>
             {(searchTerm || actionFilter || startDate || endDate) && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
+              <Button variant="secondary" size="sm" onClick={clearFilters}>
                 Réinitialiser
               </Button>
             )}
